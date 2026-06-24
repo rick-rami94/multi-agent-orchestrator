@@ -9,6 +9,7 @@ Run:  streamlit run ui/review_app.py
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 # Allow `streamlit run ui/review_app.py` without an editable install.
@@ -18,7 +19,12 @@ import streamlit as st  # noqa: E402
 
 from orchestrator.graph import run_task  # noqa: E402
 from orchestrator.hitl.audit import AuditChain  # noqa: E402
-from orchestrator.hitl.auth import AuthError, auth_enabled, authenticate  # noqa: E402
+from orchestrator.hitl.auth import (  # noqa: E402
+    AuthError,
+    auth_enabled,
+    authenticate,
+    session_expired,
+)
 from orchestrator.hitl.queue import ReviewQueue  # noqa: E402
 
 st.set_page_config(page_title="Agent Review Queue", page_icon="🧠", layout="wide")
@@ -27,10 +33,19 @@ st.caption("Human-in-the-loop approvals · Notify · Approve Action · Approve P
 
 
 def _login_gate():
-    """Authenticate the reviewer before any review action (VA-01)."""
+    """Authenticate the reviewer before any review action (VA-01).
+
+    Sessions expire after a configured timeout (REVIEW_SESSION_TIMEOUT_MINUTES);
+    an aged-out session is cleared and the reviewer must sign in again.
+    """
     reviewer = st.session_state.get("reviewer")
     if reviewer:
-        return reviewer
+        if session_expired(st.session_state.get("reviewer_at", 0.0)):
+            st.session_state.pop("reviewer", None)
+            st.session_state.pop("reviewer_at", None)
+            st.warning("Your session expired. Please sign in again.")
+        else:
+            return reviewer
     with st.form("login"):
         st.subheader("Reviewer sign-in")
         name = st.text_input("Reviewer name")
@@ -39,6 +54,7 @@ def _login_gate():
             try:
                 reviewer = authenticate(name, token)
                 st.session_state["reviewer"] = reviewer.name
+                st.session_state["reviewer_at"] = time.time()
                 st.rerun()
             except AuthError as exc:
                 st.error(f"Sign-in failed: {exc}")
@@ -53,6 +69,7 @@ with st.sidebar:
         st.warning("⚠️ Auth disabled (local demo). Do not use in production.")
     if st.button("Sign out"):
         st.session_state.pop("reviewer", None)
+        st.session_state.pop("reviewer_at", None)
         st.rerun()
 
 queue = ReviewQueue()

@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 
 from orchestrator.config import get_settings
-from orchestrator.hitl.auth import AuthError, authenticate
+from orchestrator.hitl.auth import (
+    AuthError,
+    authenticate,
+    session_expired,
+    session_timeout_seconds,
+)
 from orchestrator.tools.registry import REGISTRY, Tool
 
 
@@ -45,6 +50,37 @@ def test_unknown_user_is_rejected():
     _configure(review_auth_enabled=True, review_users="alice:s3cret")
     with pytest.raises(AuthError):
         authenticate("mallory", "s3cret")
+
+
+# ── session timeout (VA-01) ─────────────────────────────────────────────────
+def test_session_timeout_defaults_to_15_minutes():
+    _configure(review_session_timeout_minutes=15)
+    assert session_timeout_seconds() == 15 * 60
+
+
+def test_fresh_session_is_not_expired():
+    _configure(review_session_timeout_minutes=15)
+    started = 1000.0
+    assert session_expired(started, now=started + 60) is False  # 1 min in
+
+
+def test_session_expires_after_timeout():
+    _configure(review_session_timeout_minutes=15)
+    started = 1000.0
+    # 15 min + 1s later -> expired
+    assert session_expired(started, now=started + 15 * 60 + 1) is True
+
+
+def test_session_expiry_uses_configured_value():
+    _configure(review_session_timeout_minutes=5)
+    started = 0.0
+    assert session_expired(started, now=started + 4 * 60) is False
+    assert session_expired(started, now=started + 5 * 60) is True
+
+
+def test_zero_timeout_disables_expiry():
+    _configure(review_session_timeout_minutes=0)
+    assert session_expired(0.0, now=10**9) is False
 
 
 # ── tool approval (VA-02, default-deny) ─────────────────────────────────────
