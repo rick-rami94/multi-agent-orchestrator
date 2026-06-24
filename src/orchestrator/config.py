@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     review_auth_enabled: bool = True
     # Comma-separated "name:token" pairs, e.g. "alice:s3cret,bob:hunter2".
     review_users: str = ""
+    # Reviewer session lifetime, in minutes. After this long a reviewer must
+    # re-authenticate. Kept short by default for a privileged approval surface;
+    # set to 0 to disable expiry (not recommended).
+    review_session_timeout_minutes: int = 15
 
     # Observability
     otel_exporter_otlp_endpoint: str = ""

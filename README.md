@@ -151,6 +151,7 @@ Sensible defaults mean nothing is required to start.
 | `QUALITY_THRESHOLD`          | `0.6`       | Below this, escalate to a human                    |
 | `REVIEW_AUTH_ENABLED`        | `true`      | Require authenticated reviewers (secure by default)|
 | `REVIEW_USERS`               | —           | `name:token` pairs, e.g. `alice:s3cret,bob:hunter2`|
+| `REVIEW_SESSION_TIMEOUT_MINUTES` | `15`    | Reviewer session lifetime before re-auth (`0` disables)|
 | `REDIS_URL`                  | `redis://localhost:6379/0` | Working memory + review queue       |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`| —           | Export traces (else console exporter)              |
 
