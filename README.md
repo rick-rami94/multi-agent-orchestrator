@@ -1,8 +1,12 @@
 # Multi-Agent Orchestrator
 
 [![CI](https://github.com/rick-rami94/multi-agent-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/rick-rami94/multi-agent-orchestrator/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rick-rami94/multi-agent-orchestrator/branch/main/graph/badge.svg)](https://codecov.io/gh/rick-rami94/multi-agent-orchestrator)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Security Policy](https://img.shields.io/badge/security-policy-blue.svg)](SECURITY.md)
+[![Last commit](https://img.shields.io/github/last-commit/rick-rami94/multi-agent-orchestrator)](https://github.com/rick-rami94/multi-agent-orchestrator/commits/main)
 
 A production-shaped reference implementation of a **supervisor → specialist → reviewer** agent
 system with persistent memory, a security-first **human-in-the-loop (HITL)** approval layer, tool

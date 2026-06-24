@@ -34,4 +34,15 @@ jobs:
         run: ruff check src tests
 
       - name: Test
-        run: pytest
+        run: pytest --cov=orchestrator --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        # Upload once (from a single matrix leg) and never fail the build on a
+        # Codecov hiccup — keeps the CI badge green even before the repo is
+        # activated on codecov.io.
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
