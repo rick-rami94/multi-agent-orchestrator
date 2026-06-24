@@ -1,5 +1,9 @@
 # Multi-Agent Orchestrator
 
+[![CI](https://github.com/rick-rami94/multi-agent-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/rick-rami94/multi-agent-orchestrator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+
 A production-shaped reference implementation of a **supervisor → specialist → reviewer** agent
 system with persistent memory, a security-first **human-in-the-loop (HITL)** approval layer, tool
 use with rate limiting, and OpenTelemetry tracing.
