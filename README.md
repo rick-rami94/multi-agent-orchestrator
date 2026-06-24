@@ -192,19 +192,19 @@ places deterministic, human-governed controls around every action that can leave
 
 ```mermaid
 flowchart TD
-    U[Task input] -->|length + empty validation| S[Supervisor: decompose]
-    S --> D{Dispatch: pending subtask?}
-    D -->|yes| SP[Specialist runs<br/>tools are rate-limited + schema'd]
-    SP --> R[Reviewer]
-    R -->|side-effecting tool used<br/>OR low confidence/quality<br/>OR sensitive text| E[Escalate]
+    U["Task input"] -->|"length + empty validation"| S["Supervisor: decompose"]
+    S --> D{"Dispatch: pending subtask?"}
+    D -->|yes| SP["Specialist runs<br/>tools rate-limited + schema-validated"]
+    SP --> R["Reviewer"]
+    R -->|"side-effecting tool used<br/>OR low confidence/quality<br/>OR sensitive text"| E["Escalate"]
     R -->|accept| D
-    D -->|no more subtasks| RD[Reduce: final answer]
-    E --> Q[(Review queue)]
-    Q --> A{{Authenticated reviewer<br/>constant-time token, fail-closed}}
-    A -->|approve / reject / edit / take_over| AC[Audit hash chain<br/>SHA-256, tamper-evident]
+    D -->|"no more subtasks"| RD["Reduce: final answer"]
+    E --> Q[("Review queue")]
+    Q --> A{{"Authenticated reviewer<br/>constant-time token, fail-closed"}}
+    A -->|"approve / reject / edit / take_over"| AC["Audit hash chain<br/>SHA-256, tamper-evident"]
     E --> D
 
-    subgraph Trust boundary — human-governed
+    subgraph tb["Trust boundary — human-governed"]
         A
         AC
     end
