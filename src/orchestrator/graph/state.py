@@ -1,4 +1,5 @@
 """Shared state passed between graph nodes."""
+
 from __future__ import annotations
 
 import operator
@@ -38,6 +39,9 @@ class GraphState(TypedDict, total=False):
     escalated: bool
     escalation_reason: str
     approval: str  # notify | approve_action | approve_plan | take_over
+    # Every escalation across all subtasks, accumulated so the final answer can
+    # report whether *any* subtask required review (not just the last one).
+    escalations: Annotated[list[dict], operator.add]
 
     # Final
     answer: str

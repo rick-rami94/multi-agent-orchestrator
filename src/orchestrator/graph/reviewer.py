@@ -1,4 +1,5 @@
 """Reviewer node: validates specialist output before returning to supervisor."""
+
 from __future__ import annotations
 
 from ..config import get_settings
@@ -27,9 +28,7 @@ def review(state: GraphState) -> GraphState:
         tools_used = state.get("tools_used", [])
         used_side_effecting = [t for t in tools_used if REGISTRY.requires_approval(t)]
 
-        text_sensitive, sensitivity_labels = (
-            classify(latest["result"]) if latest is not None else (False, [])
-        )
+        text_sensitive, sensitivity_labels = classify(latest["result"]) if latest is not None else (False, [])
 
         reason = ""
         escalate = False

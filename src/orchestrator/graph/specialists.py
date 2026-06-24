@@ -3,6 +3,7 @@
 Each specialist is tool-using: it pulls relevant long-term memories, may call a
 registered tool, and produces a result with a self-reported confidence.
 """
+
 from __future__ import annotations
 
 from ..llm import LLMClient
@@ -21,7 +22,11 @@ _SYSTEM = {
 
 def _run_specialist(state: GraphState, kind: str) -> GraphState:
     plan = state.get("plan", [])
-    subtask = next((s for s in plan if s["kind"] == kind and s["status"] == "pending"), None)
+    # A subtask is "pending" until its id shows up in the accumulated `completed`
+    # list. Tracking completion by id (rather than mutating plan status) keeps the
+    # node pure and lets several subtasks of the same kind run in sequence.
+    done_ids = {c["id"] for c in state.get("completed", [])}
+    subtask = next((s for s in plan if s["kind"] == kind and s["id"] not in done_ids), None)
     if subtask is None:
         return {}
 
@@ -51,8 +56,14 @@ def _run_specialist(state: GraphState, kind: str) -> GraphState:
         "completed": [done],
         "confidence": done["confidence"],
         "tools_used": tools_used,
-        "trace": [{"node": f"specialist.{kind}", "event": "complete",
-                   "provider": out.provider, "tools_used": tools_used}],
+        "trace": [
+            {
+                "node": f"specialist.{kind}",
+                "event": "complete",
+                "provider": out.provider,
+                "tools_used": tools_used,
+            }
+        ],
     }
 
 

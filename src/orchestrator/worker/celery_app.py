@@ -1,4 +1,5 @@
 """Celery application: run orchestration tasks off the request path."""
+
 from __future__ import annotations
 
 from ..config import get_settings

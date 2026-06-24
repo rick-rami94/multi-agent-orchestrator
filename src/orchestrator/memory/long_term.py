@@ -3,6 +3,7 @@
 Stores what worked and which tools were used, retrievable by semantic similarity.
 Degrades to an in-process keyword store when ChromaDB is unavailable.
 """
+
 from __future__ import annotations
 
 import hashlib

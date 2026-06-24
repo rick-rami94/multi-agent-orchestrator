@@ -6,13 +6,19 @@ Approval levels:
   APPROVE_PLAN   — block on approval of the whole plan
   TAKE_OVER      — hand control to a human entirely
 """
+
 from __future__ import annotations
 
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from ..graph.state import GraphState
 from ..observability.tracing import span
 from .queue import ReviewItem, ReviewQueue
+
+if TYPE_CHECKING:
+    # Type-only import: importing graph.state at runtime would pull in the graph
+    # package (and builder), which imports this module back — a circular import.
+    from ..graph.state import GraphState
 
 
 class ApprovalLevel(str, Enum):
@@ -54,5 +60,15 @@ def escalate(state: GraphState) -> GraphState:
     return {
         "escalated": True,
         "approval": level.value,
+        # Append to the accumulating record so a run that escalates on more than
+        # one subtask keeps every escalation, not just the most recent.
+        "escalations": [
+            {
+                "task_id": item.task_id,
+                "reason": reason,
+                "level": level.value,
+                "proposed_action": item.proposed_action,
+            }
+        ],
         "trace": [{"node": "hitl", "event": "escalate", "reason": reason, "level": level.value}],
     }

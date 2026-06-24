@@ -2,6 +2,7 @@
 
 Degrades to an in-process dict when Redis is unavailable.
 """
+
 from __future__ import annotations
 
 import json
