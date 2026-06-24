@@ -27,7 +27,7 @@ class ReviewItem:
         return json.dumps(asdict(self))
 
     @staticmethod
-    def from_json(raw: str) -> "ReviewItem":
+    def from_json(raw: str) -> ReviewItem:
         return ReviewItem(**json.loads(raw))
 
 

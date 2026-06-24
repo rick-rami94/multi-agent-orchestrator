@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from enum import Enum
 
-from ..observability.tracing import span
 from ..graph.state import GraphState
+from ..observability.tracing import span
 from .queue import ReviewItem, ReviewQueue
 
 

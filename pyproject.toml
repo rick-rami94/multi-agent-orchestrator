@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi-agent-orchestrator"
+description = "Multi-agent orchestration with persistent memory and human-in-the-loop."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Rick Ramirez" }]
+dynamic = ["version"]
+
+# Core deps only. Every heavy integration (LLM providers, LangGraph, Redis,
+# ChromaDB, Celery, OTel) is imported lazily and degrades to an in-process
+# fallback, so the package runs end-to-end with just these two installed.
+dependencies = [
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+]
+
+[project.optional-dependencies]
+graph = ["langgraph>=0.2.0", "langchain-core>=0.3.0"]
+llm = ["openai>=1.40.0", "anthropic>=0.39.0"]
+memory = ["chromadb>=0.5.0", "redis>=5.0.0"]
+worker = ["celery>=5.4.0"]
+db = ["psycopg[binary]>=3.2.0"]
+ui = ["streamlit>=1.36.0"]
+otel = [
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp>=1.25.0",
+]
+all = [
+    "multi-agent-orchestrator[graph,llm,memory,worker,db,ui,otel]",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5.0",
+]
+
+[project.scripts]
+orchestrator = "orchestrator.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "orchestrator.__version__" }
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Sensitivity patterns are intentionally long regex literals; wrapping them
+# would hurt readability more than the line-length cap helps.
+"src/orchestrator/hitl/sensitivity.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
