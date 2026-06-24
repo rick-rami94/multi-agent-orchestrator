@@ -51,6 +51,14 @@ A task enters the graph and flows through four roles:
                     final answer  ──▶  persisted to long-term memory
 ```
 
+## Human review console
+
+When the reviewer escalates, the item lands in a Streamlit console where an authenticated human
+approves, rejects, edits, or takes over. Below, a task asking to `DROP TABLE users` in production is
+caught by the sensitivity gate and escalated at the **`take_over`** level:
+
+![Multi-agent human-in-the-loop review console](docs/review-console.png)
+
 ## Design highlights
 
 - **Stateful graph, not a prompt chain.** Roles are LangGraph nodes over a shared, typed
