@@ -3,6 +3,7 @@
 The mock provider is deterministic so the full graph, memory, queue, and review
 UI run end-to-end without any API keys.
 """
+
 from __future__ import annotations
 
 import json

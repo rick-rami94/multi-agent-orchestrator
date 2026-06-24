@@ -1,4 +1,5 @@
 """CLI entry point: run a task through the orchestration graph."""
+
 from __future__ import annotations
 
 import argparse
@@ -34,8 +35,10 @@ def cli(argv: list[str] | None = None) -> int:
     print("\n=== ANSWER ===")
     print(result.get("answer", "(none)"))
     print("\n=== REVIEW ===")
-    print(f"quality={result.get('quality')}  confidence={result.get('confidence')}  "
-          f"escalated={result.get('escalated')}  reason={result.get('escalation_reason', '')}")
+    print(
+        f"quality={result.get('quality')}  confidence={result.get('confidence')}  "
+        f"escalated={result.get('escalated')}  reason={result.get('escalation_reason', '')}"
+    )
     if args.trace:
         print("\n=== TRACE ===")
         for evt in result.get("trace", []):

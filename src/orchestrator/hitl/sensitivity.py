@@ -14,6 +14,7 @@ side-effecting tools (see ``tools.registry``): any tool that can cause external
 effects requires explicit human approval regardless of what this classifier
 says. Treat a "not sensitive" result as "no extra signal", not "safe".
 """
+
 from __future__ import annotations
 
 import re
@@ -22,13 +23,31 @@ import re
 # substring false positives while spacing normalization prevents evasion.
 _PATTERNS: tuple[tuple[str, str], ...] = (
     ("destructive_db", r"\b(drop|truncate|delete)\b.*\b(table|database|schema|collection|index)\b"),
-    ("destructive_fs", r"\brm\b.*\b(rf|r f|fr)\b|\b(delete|remove|wipe|erase|format)\b.*\b(file|files|directory|disk|volume|all)\b"),
-    ("funds", r"\b(transfer|wire|send|withdraw|refund|charge)\b.*\b(funds|money|payment|dollars|usd|btc|eth|account)\b"),
+    (
+        "destructive_fs",
+        r"\brm\b.*\b(rf|r f|fr)\b|\b(delete|remove|wipe|erase|format)\b.*\b(file|files|directory|disk|volume|all)\b",
+    ),
+    (
+        "funds",
+        r"\b(transfer|wire|send|withdraw|refund|charge)\b.*\b(funds|money|payment|dollars|usd|btc|eth|account)\b",
+    ),
     ("deploy", r"\b(deploy|release|rollback|ship|promote)\b.*\b(prod|production|live|main|master)\b"),
-    ("comms", r"\b(send|publish|post|email|tweet|broadcast)\b.*\b(email|message|customers|users|public|everyone)\b"),
-    ("access", r"\b(grant|revoke|escalate|disable|drop)\b.*\b(access|permission|permissions|role|admin|root|privilege)\b"),
-    ("secrets", r"\b(reveal|print|dump|exfiltrate|leak|export)\b.*\b(secret|secrets|password|passwords|credential|credentials|api[_ ]?key|token)\b"),
-    ("infra", r"\b(shutdown|terminate|destroy|delete|stop)\b.*\b(instance|server|cluster|node|pod|service|infra|infrastructure)\b"),
+    (
+        "comms",
+        r"\b(send|publish|post|email|tweet|broadcast)\b.*\b(email|message|customers|users|public|everyone)\b",
+    ),
+    (
+        "access",
+        r"\b(grant|revoke|escalate|disable|drop)\b.*\b(access|permission|permissions|role|admin|root|privilege)\b",
+    ),
+    (
+        "secrets",
+        r"\b(reveal|print|dump|exfiltrate|leak|export)\b.*\b(secret|secrets|password|passwords|credential|credentials|api[_ ]?key|token)\b",
+    ),
+    (
+        "infra",
+        r"\b(shutdown|terminate|destroy|delete|stop)\b.*\b(instance|server|cluster|node|pod|service|infra|infrastructure)\b",
+    ),
 )
 
 _COMPILED = tuple((label, re.compile(pat)) for label, pat in _PATTERNS)

@@ -5,6 +5,7 @@ it. Tokens are compared in constant time. The system is secure by default:
 authentication is on unless explicitly disabled for a local demo, and an
 enabled-but-unconfigured deployment fails closed (no reviewers => no access).
 """
+
 from __future__ import annotations
 
 import hmac
@@ -54,9 +55,7 @@ def authenticate(name: str, token: str) -> Reviewer:
     users = _parse_users(settings.review_users)
     if not users:
         # Enabled but unconfigured: fail closed rather than allow everyone.
-        raise AuthError(
-            "review authentication is enabled but no REVIEW_USERS are configured"
-        )
+        raise AuthError("review authentication is enabled but no REVIEW_USERS are configured")
 
     expected = users.get(name)
     # Always run a comparison to avoid leaking which names exist via timing.

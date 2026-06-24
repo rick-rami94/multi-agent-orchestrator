@@ -5,6 +5,7 @@ deterministic mock provider with no API keys, Redis, or ChromaDB, and that the
 security-critical gates (default-deny tool approval, sensitivity classification,
 fail-closed reviewer auth, the safe calculator) behave as designed.
 """
+
 from __future__ import annotations
 
 import pytest

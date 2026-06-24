@@ -21,34 +21,44 @@ Built on **LangGraph**, provider-agnostic across **OpenAI** and **Anthropic**, w
 
 A task enters the graph and flows through four roles:
 
-1. **Supervisor** decomposes the task and routes it to the right specialist, then reduces the
-   specialist outputs into a final answer.
+1. **Supervisor** decomposes the task into **one or more** subtasks — a request to "research X,
+   analyze the trade-offs, and write a recommendation" fans out to three specialists — then reduces
+   their outputs into a single coherent, labelled answer.
 2. **Specialists** (`research`, `analysis`, `writing`, `code`) do the work. Each one recalls
    relevant long-term memories, may call a registered tool, and reports its own confidence.
-3. **Reviewer** scores the output and decides whether to accept it or escalate to a human.
+3. **Reviewer** scores each output and decides whether to accept it or escalate to a human.
 4. **Escalation** packages the context and pushes it onto a review queue for an authenticated
-   human to approve, reject, or take over.
+   human to **approve**, **reject**, **edit**, or **take over** — and the decision is recorded in a
+   tamper-evident audit chain.
 
 ```
                     ┌─────────────┐
-   task ───────────▶│ Supervisor  │  decompose + route
+   task ───────────▶│ Supervisor  │  decompose into N subtasks
                     └──────┬──────┘
-            ┌──────────────┼──────────────┬───────────────┐
-            ▼              ▼              ▼               ▼
-        research       analysis        writing          code      (tool-using specialists)
-            └──────────────┴──────────────┴───────────────┘
-                                 ▼
-                          ┌─────────────┐
+                           ▼
+                    ┌─────────────┐ ◀──────────────────────────┐
+                    │  Dispatch   │  next pending subtask?      │
+                    └──────┬──────┘                            │
+            ┌──────────────┼──────────────┬───────────────┐    │ loop until
+            ▼              ▼              ▼               ▼    │ every subtask
+        research       analysis        writing          code  │ is done
+            └──────────────┴──────┬───────┴───────────────┘    │
+                                  ▼                            │
+                          ┌─────────────┐                      │
                           │  Reviewer   │  quality / confidence / sensitivity gate
-                          └──────┬──────┘
-                       accept    │   escalate
-                           ┌─────┴─────┐
-                           ▼           ▼
-                      ┌────────┐  ┌───────────┐
-                      │ Reduce │◀─│ Escalate  │ → Redis review queue → Streamlit HITL console
-                      └───┬────┘  └───────────┘
-                          ▼
-                    final answer  ──▶  persisted to long-term memory
+                          └──────┬──────┘                      │
+                       accept    │   escalate                  │
+                           ┌─────┴───────────┐                 │
+                           │                 ▼                 │
+                           │           ┌───────────┐  → Redis review queue
+                           └──────────▶│ Escalate  │──┐ → Streamlit HITL console
+                                       └───────────┘  │           │
+                                  (all subtasks done) ▼───────────┘
+                                       ┌────────┐
+                                       │ Reduce │  aggregate labelled sections
+                                       └───┬────┘
+                                           ▼
+                                     final answer ──▶ persisted to long-term memory
 ```
 
 ## Human review console
@@ -73,9 +83,11 @@ caught by the sensitivity gate and escalated at the **`take_over`** level:
   gate is an allow-list on side-effecting tools**: any tool that can write, pay, deploy, or
   communicate requires explicit human approval and is *default-deny*. Text-based sensitivity
   classification is treated only as defense-in-depth, never the primary control.
-- **Attributable approvals.** Reviewer auth is **secure by default** (constant-time token compare,
-  fails closed when enabled-but-unconfigured). Every resolution writes an append-only audit record
-  of *who* decided *what*.
+- **Attributable, tamper-evident approvals.** Reviewer auth is **secure by default** (constant-time
+  token compare, fails closed when enabled-but-unconfigured). Every resolution (`approve` / `reject`
+  / `edit` / `take_over`, including the human's revised text) is committed to a **SHA-256 hash
+  chain**, so any later modification, reordering, or deletion of a record is detectable by
+  `AuditChain.verify()`.
 - **Safe tool use.** Tools are registered with a JSON schema and a token-bucket rate limit. The
   demo `calculator` evaluates arithmetic via an AST walker (no `eval`, exponentiation rejected to
   prevent resource exhaustion).
@@ -157,7 +169,8 @@ src/orchestrator/
 ├── hitl/
 │   ├── escalation.py    # Graded approval levels
 │   ├── sensitivity.py   # Defense-in-depth text classification
-│   ├── queue.py         # Redis-backed review queue + audit log
+│   ├── queue.py         # Review queue + approve/reject/edit/take_over resolutions
+│   ├── audit.py         # Tamper-evident SHA-256 audit hash chain
 │   └── auth.py          # Constant-time, fail-closed reviewer auth
 ├── memory/
 │   ├── short_term.py    # Redis working memory (TTL-scoped)
@@ -168,11 +181,92 @@ src/orchestrator/
 ui/review_app.py         # Streamlit human-review console
 ```
 
-## Security
+## Security Architecture
 
-Security was a first-class concern, not an afterthought. See **[SECURITY.md](SECURITY.md)** and the
-**[VULNERABILITY_ASSESSMENT.md](VULNERABILITY_ASSESSMENT.md)** for the threat model and the specific
-findings (VA-01…) that shaped the auth, allow-list, and sensitivity-classification design.
+Security is a first-class concern. The design assumes the LLM and its outputs are **untrusted**, and
+places deterministic, human-governed controls around every action that can leave the sandbox.
+
+```mermaid
+flowchart TD
+    U[Task input] -->|length + empty validation| S[Supervisor: decompose]
+    S --> D{Dispatch: pending subtask?}
+    D -->|yes| SP[Specialist runs<br/>tools are rate-limited + schema'd]
+    SP --> R[Reviewer]
+    R -->|side-effecting tool used<br/>OR low confidence/quality<br/>OR sensitive text| E[Escalate]
+    R -->|accept| D
+    D -->|no more subtasks| RD[Reduce: final answer]
+    E --> Q[(Review queue)]
+    Q --> A{{Authenticated reviewer<br/>constant-time token, fail-closed}}
+    A -->|approve / reject / edit / take_over| AC[Audit hash chain<br/>SHA-256, tamper-evident]
+    E --> D
+
+    subgraph Trust boundary — human-governed
+        A
+        AC
+    end
+
+    classDef ctrl fill:#eef,stroke:#446;
+    class A,AC,R ctrl;
+```
+
+**Layered controls**
+
+| Control | Where | Guarantee |
+| ------- | ----- | --------- |
+| Input validation | `graph/builder.py` | Empty/oversized tasks rejected before any model call |
+| Default-deny tool approval | `tools/registry.py` | Unknown or unapproved **side-effecting** tools require human approval (authoritative gate) |
+| Sensitivity classification | `hitl/sensitivity.py` | Normalized-regex detection of destructive intent — *defense-in-depth only*, never authoritative |
+| Reviewer authentication | `hitl/auth.py` | Secure by default; constant-time compare; **fails closed** when enabled-but-unconfigured |
+| Meaningful HITL decisions | `hitl/queue.py` | `approve` / `reject` / `edit` / `take_over`, with reviewer text becoming the final result |
+| Tamper-evident audit | `hitl/audit.py` | SHA-256 hash chain; `verify()` detects any record edit, reorder, or deletion |
+| Safe arithmetic tool | `tools/registry.py` | AST walker, no `eval`, `**` rejected (resource-exhaustion guard) |
+| Rate limiting | `tools/registry.py` | Token-bucket per tool |
+
+## Threat Model Summary
+
+Framed against the OWASP Top 10 for LLM Applications and agentic-AI failure modes:
+
+- **Prompt injection (LLM01).** Model output is treated as untrusted. It can *propose* but cannot
+  *act*: any side-effecting tool is default-deny and gated behind authenticated human approval, so an
+  injected instruction to "wire the funds" still cannot execute without a human. *Residual risk:* the
+  text sensitivity classifier is a heuristic and is intentionally **not** relied on as the control.
+- **Excessive agency (LLM06 / agentic).** Agents have no ambient authority. Tools are explicitly
+  registered, schema-validated, rate-limited, and side-effecting ones require approval. The reviewer
+  escalates whenever a side-effecting tool is used, regardless of how confident the agent is.
+- **Insecure tool use (LLM07).** Tools take schema'd inputs; the bundled `calculator` uses an AST
+  walker (no `eval`) and rejects exponentiation to prevent resource exhaustion. New tools are
+  default-deny until a maintainer marks them approved.
+- **Weak auditability.** Every human decision is written to a SHA-256 **hash chain** capturing
+  `timestamp, task_id, action, decision, approver, proposed_action, final_input, previous_hash,
+  record_hash`. `AuditChain.verify()` proves the log has not been tampered with after the fact.
+- **Overreliance (LLM09).** Confidence and quality thresholds, plus the sensitivity gate, route
+  uncertain or dangerous work to a human rather than auto-accepting it. The reviewer can `edit` a
+  flawed answer or `take_over` entirely, and that human input — not the model's — becomes the result.
+
+See **[SECURITY.md](SECURITY.md)** and **[VULNERABILITY_ASSESSMENT.md](VULNERABILITY_ASSESSMENT.md)**
+for the full findings (VA-01…) that shaped the auth, allow-list, and classification design.
+
+## Not production-ready yet
+
+This is a **portfolio / reference** implementation. Honest limitations before it could carry real
+traffic:
+
+- **Sensitivity classifier is heuristic.** Regex over normalized text catches obvious destructive
+  intent but is easily evaded by paraphrase and is English-only. It is defense-in-depth, not a
+  guardrail to depend on; a real deployment needs a trained classifier and/or an LLM judge.
+- **Reviewer auth is shared-token, not real identity.** `name:token` pairs from config are fine for a
+  demo but need OIDC/SSO, per-user secrets, rotation, and revocation in production.
+- **Audit chain is integrity-evident, not integrity-*protected*.** A `previous_hash` chain detects
+  tampering but an attacker who can rewrite the whole store could recompute it. Production needs
+  append-only/WORM storage, periodic anchoring (e.g., signed checkpoints), and HMAC/signatures.
+- **Approvals do not yet pause a live run.** Orchestration is synchronous; escalations are queued and
+  resolved out-of-band, and a `Resolution.final_result` is returned for the caller to apply. True
+  mid-graph interrupt/resume (LangGraph checkpointer) is not wired up.
+- **No network egress controls or secrets management.** Tools could reach arbitrary hosts; provider
+  keys come from env. Needs egress allow-listing and a secrets manager.
+- **No persistence of orchestration state across processes**, no multi-tenant isolation, and limited
+  load/cost controls. The mock provider is deterministic; real providers add nondeterminism not yet
+  covered by evals.
 
 ## License
 

@@ -5,6 +5,7 @@ memories, and lets a human apply one of the four approval levels.
 
 Run:  streamlit run ui/review_app.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -16,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import streamlit as st  # noqa: E402
 
 from orchestrator.graph import run_task  # noqa: E402
+from orchestrator.hitl.audit import AuditChain  # noqa: E402
 from orchestrator.hitl.auth import AuthError, auth_enabled, authenticate  # noqa: E402
 from orchestrator.hitl.queue import ReviewQueue  # noqa: E402
 
@@ -93,6 +95,37 @@ for idx, item in enumerate(items):
                 ["approve", "reject", "edit", "take_over"],
                 key=f"dec-{idx}",
             )
+            # edit / take_over need the human's replacement text.
+            note = ""
+            if decision in ("edit", "take_over"):
+                label = "Revised action" if decision == "edit" else "Your answer (final)"
+                note = st.text_area(
+                    label, key=f"note-{idx}", value=item.proposed_action if decision == "edit" else ""
+                )
             if st.button("Resolve", key=f"res-{idx}"):
-                queue.resolve(idx, decision, approver=reviewer_name)
-                st.rerun()
+                try:
+                    res = queue.resolve(idx, decision, approver=reviewer_name, note=note)
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state["last_resolution"] = {
+                        "task_id": res.task_id,
+                        "decision": res.decision,
+                        "approver": res.approver,
+                        "timestamp": res.timestamp,
+                        "final_result": res.final_result,
+                    }
+                    st.rerun()
+
+# Show the most recent resolution and the verifiable audit trail.
+if "last_resolution" in st.session_state:
+    st.subheader("Last resolution")
+    st.json(st.session_state["last_resolution"], expanded=False)
+
+with st.expander("Audit trail (tamper-evident)", expanded=False):
+    intact, broken_at = AuditChain().verify()
+    if intact:
+        st.success("✅ Audit chain verified — no tampering detected.")
+    else:
+        st.error(f"⚠️ Audit chain broken at record #{broken_at}.")
+    st.json(queue.audit_log(), expanded=False)

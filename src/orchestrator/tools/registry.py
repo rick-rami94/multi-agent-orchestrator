@@ -3,6 +3,7 @@
 Each tool carries a name, JSON schema, and a simple token-bucket rate limit.
 Register with the @tool decorator; specialists look tools up by name.
 """
+
 from __future__ import annotations
 
 import time
@@ -95,14 +96,21 @@ class ToolRegistry:
 REGISTRY = ToolRegistry()
 
 
-def tool(name: str, schema: dict, rate_per_min: int = 60,
-         side_effecting: bool = False, approved: bool = False):
+def tool(
+    name: str, schema: dict, rate_per_min: int = 60, side_effecting: bool = False, approved: bool = False
+):
     """Decorator to register a function as a rate-limited tool."""
 
     def deco(fn: Callable[..., str]) -> Callable[..., str]:
         REGISTRY.register(
-            Tool(name=name, fn=fn, schema=schema, rate_per_min=rate_per_min,
-                 side_effecting=side_effecting, approved=approved)
+            Tool(
+                name=name,
+                fn=fn,
+                schema=schema,
+                rate_per_min=rate_per_min,
+                side_effecting=side_effecting,
+                approved=approved,
+            )
         )
         return fn
 
@@ -122,8 +130,7 @@ def web_search(query: str) -> str:
 
 @tool(
     name="calculator",
-    schema={"type": "object", "properties": {"expression": {"type": "string"}},
-            "required": ["expression"]},
+    schema={"type": "object", "properties": {"expression": {"type": "string"}}, "required": ["expression"]},
     rate_per_min=120,
 )
 def calculator(expression: str) -> str:
@@ -139,9 +146,13 @@ def calculator(expression: str) -> str:
 def _safe_arith(expression: str):
     import ast
 
-    _BIN = {ast.Add: lambda a, b: a + b, ast.Sub: lambda a, b: a - b,
-            ast.Mult: lambda a, b: a * b, ast.Div: lambda a, b: a / b,
-            ast.Mod: lambda a, b: a % b}
+    _BIN = {
+        ast.Add: lambda a, b: a + b,
+        ast.Sub: lambda a, b: a - b,
+        ast.Mult: lambda a, b: a * b,
+        ast.Div: lambda a, b: a / b,
+        ast.Mod: lambda a, b: a % b,
+    }
 
     def _eval(node):
         if isinstance(node, ast.Expression):

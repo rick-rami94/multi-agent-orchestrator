@@ -4,6 +4,7 @@
 installed/configured, and is otherwise a no-op — so instrumentation never
 breaks the demo.
 """
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -25,9 +26,7 @@ def setup_tracing():
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-        provider = TracerProvider(
-            resource=Resource.create({"service.name": settings.otel_service_name})
-        )
+        provider = TracerProvider(resource=Resource.create({"service.name": settings.otel_service_name}))
         if settings.otel_exporter_otlp_endpoint:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
